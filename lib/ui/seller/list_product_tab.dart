@@ -40,8 +40,16 @@ class _ListProductsTabState extends State<ListProductsTab> {
           itemBuilder: (context, index) {
             final product = products[index];
             return ListTile(
-              title: Text(product.name),
-              subtitle: Text('Marca: ${product.brand} - Qtd: ${product.amount}'),
+              title: Text(
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                'Marca: ${product.brand} - Qtd: ${product.amount}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           },
         );

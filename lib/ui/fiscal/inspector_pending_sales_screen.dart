@@ -122,6 +122,8 @@ class InspectorPendingPreSalesScreenState
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -130,6 +132,8 @@ class InspectorPendingPreSalesScreenState
                                   fontSize: 14,
                                   color: Colors.grey.shade800,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -138,6 +142,8 @@ class InspectorPendingPreSalesScreenState
                                   fontSize: 13,
                                   color: Colors.grey.shade600,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),

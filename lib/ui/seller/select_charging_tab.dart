@@ -23,7 +23,8 @@ class _SelectChargingTabState extends State<SelectChargingTab> {
   @override
   void initState() {
     super.initState();
-    _chargings = ChargingService().getChargings(); // pega carregamentos do serviço
+    _chargings = ChargingService()
+        .getChargings(); // pega carregamentos do serviço
   }
 
   @override
@@ -67,7 +68,10 @@ class _SelectChargingTabState extends State<SelectChargingTab> {
                     children: [
                       CircleAvatar(
                         backgroundColor: Colors.blue.shade100,
-                        child: const Icon(Icons.local_shipping, color: Colors.blue),
+                        child: const Icon(
+                          Icons.local_shipping,
+                          color: Colors.blue,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -80,6 +84,8 @@ class _SelectChargingTabState extends State<SelectChargingTab> {
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -99,7 +105,11 @@ class _SelectChargingTabState extends State<SelectChargingTab> {
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                     ],
                   ),
                 ),

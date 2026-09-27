@@ -243,6 +243,11 @@ class _CreatePreSaleScreenState extends State<CreatePreSaleScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.only(
+                    bottom: 12 + MediaQuery.viewInsetsOf(context).bottom,
+                  ),
                   children: [
                     _buildSelectedItemsCard(),
                     const SizedBox(height: 20),
@@ -361,32 +366,43 @@ class _CreatePreSaleScreenState extends State<CreatePreSaleScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<bool>(
-                    title: const Text('Buscar cliente'),
-                    value: true,
-                    groupValue: _useExistingClient,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      _changeClientMode(value);
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: RadioListTile<bool>(
-                    title: const Text('Cliente novo'),
-                    value: false,
-                    groupValue: _useExistingClient,
-                    onChanged: (value) {
-                      if (value == null) return;
-                      _changeClientMode(value);
-                    },
-                  ),
-                ),
-                
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final optionWidth = constraints.maxWidth < 420
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - 12) / 2;
+
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    SizedBox(
+                      width: optionWidth,
+                      child: RadioListTile<bool>(
+                        title: const Text('Buscar cliente'),
+                        value: true,
+                        groupValue: _useExistingClient,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _changeClientMode(value);
+                        },
+                      ),
+                    ),
+                    SizedBox(
+                      width: optionWidth,
+                      child: RadioListTile<bool>(
+                        title: const Text('Cliente novo'),
+                        value: false,
+                        groupValue: _useExistingClient,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _changeClientMode(value);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -461,56 +477,67 @@ class _CreatePreSaleScreenState extends State<CreatePreSaleScreen> {
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _nameCtrl,
-                enabled: enabled,
-                decoration: _inputDecoration("Nome *", Icons.person),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Informe o nome';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: _cpfCtrl,
-                enabled: enabled,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(11),
-                ],
-                decoration: _inputDecoration(
-                  "CPF *",
-                  Icons.badge,
-                ).copyWith(errorText: enabled ? _cpfErro : null),
-                validator: (v) {
-                  if (_useExistingClient) return null;
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final fieldWidth = constraints.maxWidth < 420
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 12) / 2;
 
-                  if (v == null || v.isEmpty) {
-                    return 'Informe o CPF';
-                  }
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: fieldWidth,
+                  child: TextFormField(
+                    controller: _nameCtrl,
+                    enabled: enabled,
+                    decoration: _inputDecoration("Nome *", Icons.person),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Informe o nome';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: fieldWidth,
+                  child: TextFormField(
+                    controller: _cpfCtrl,
+                    enabled: enabled,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                    decoration: _inputDecoration(
+                      "CPF *",
+                      Icons.badge,
+                    ).copyWith(errorText: enabled ? _cpfErro : null),
+                    validator: (v) {
+                      if (_useExistingClient) return null;
 
-                  if (v.length < 11) {
-                    return 'CPF deve ter 11 dígitos';
-                  }
+                      if (v == null || v.isEmpty) {
+                        return 'Informe o CPF';
+                      }
 
-                  if (_cpfErro != null) {
-                    return _cpfErro;
-                  }
+                      if (v.length < 11) {
+                        return 'CPF deve ter 11 dígitos';
+                      }
 
-                  return null;
-                },
-                onChanged: enabled ? _onCpfChanged : null,
-              ),
-            ),
-          ],
+                      if (_cpfErro != null) {
+                        return _cpfErro;
+                      }
+
+                      return null;
+                    },
+                    onChanged: enabled ? _onCpfChanged : null,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
         TextFormField(
@@ -532,105 +559,132 @@ class _CreatePreSaleScreenState extends State<CreatePreSaleScreen> {
   Widget _buildAddressFields() {
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                controller: _zipCodeCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: _inputDecoration("CEP *", Icons.location_on),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Informe o CEP';
-                  if (v.length != 8) return 'CEP inválido';
-                  return null;
-                },
-                onChanged: (value) {
-                  if (value.length == 8) {
-                    _buscarCepEPreencher(value);
-                    FocusScope.of(context).unfocus();
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: _selectedState,
-                decoration: _inputDecoration("Estado *", Icons.map_outlined),
-                items:
-                    [
-                      'AC',
-                      'AL',
-                      'AP',
-                      'AM',
-                      'BA',
-                      'CE',
-                      'DF',
-                      'ES',
-                      'GO',
-                      'MA',
-                      'MT',
-                      'MS',
-                      'MG',
-                      'PA',
-                      'PB',
-                      'PR',
-                      'PE',
-                      'PI',
-                      'RJ',
-                      'RN',
-                      'RS',
-                      'RO',
-                      'RR',
-                      'SC',
-                      'SP',
-                      'SE',
-                      'TO',
-                    ].map((estado) {
-                      return DropdownMenuItem(
-                        value: estado,
-                        child: Text(estado),
-                      );
-                    }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedState = val;
-                      _stateCtrl.text = val;
-                    });
-                  }
-                },
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Selecione um estado' : null,
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final fieldWidth = constraints.maxWidth < 420
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 12) / 2;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: fieldWidth,
+                  child: TextFormField(
+                    controller: _zipCodeCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: _inputDecoration("CEP *", Icons.location_on),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Informe o CEP';
+                      if (v.length != 8) return 'CEP inválido';
+                      return null;
+                    },
+                    onChanged: (value) {
+                      if (value.length == 8) {
+                        _buscarCepEPreencher(value);
+                        FocusScope.of(context).unfocus();
+                      }
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: fieldWidth,
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedState,
+                    decoration: _inputDecoration(
+                      "Estado *",
+                      Icons.map_outlined,
+                    ),
+                    items:
+                        [
+                          'AC',
+                          'AL',
+                          'AP',
+                          'AM',
+                          'BA',
+                          'CE',
+                          'DF',
+                          'ES',
+                          'GO',
+                          'MA',
+                          'MT',
+                          'MS',
+                          'MG',
+                          'PA',
+                          'PB',
+                          'PR',
+                          'PE',
+                          'PI',
+                          'RJ',
+                          'RN',
+                          'RS',
+                          'RO',
+                          'RR',
+                          'SC',
+                          'SP',
+                          'SE',
+                          'TO',
+                        ].map((estado) {
+                          return DropdownMenuItem(
+                            value: estado,
+                            child: Text(estado),
+                          );
+                        }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedState = val;
+                          _stateCtrl.text = val;
+                        });
+                      }
+                    },
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Selecione um estado' : null,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _streetCtrl,
-                decoration: _inputDecoration("Rua *", Icons.home),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Informe a rua' : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 1,
-              child: TextFormField(
-                controller: _numberCtrl,
-                keyboardType: TextInputType.number,
-                decoration: _inputDecoration("Número *", null),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Informe o número' : null,
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 420;
+            final streetWidth = compact
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 12) * 2 / 3;
+            final numberWidth = compact
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 12) / 3;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: streetWidth,
+                  child: TextFormField(
+                    controller: _streetCtrl,
+                    decoration: _inputDecoration("Rua *", Icons.home),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Informe a rua' : null,
+                  ),
+                ),
+                SizedBox(
+                  width: numberWidth,
+                  child: TextFormField(
+                    controller: _numberCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration("Número *", null),
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'Informe o número' : null,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
         Autocomplete<String>(

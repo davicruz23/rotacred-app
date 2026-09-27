@@ -418,9 +418,13 @@ class _CollectorScreenState extends State<CollectorScreen> {
                 color: Colors.grey,
               ),
               const SizedBox(width: 4),
-              Text(
-                "Data da Venda: ${DateFormat('dd/MM/yyyy').format(sale.saleDate.toLocal())}",
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              Expanded(
+                child: Text(
+                  "Data da Venda: ${DateFormat('dd/MM/yyyy').format(sale.saleDate.toLocal())}",
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -1499,7 +1503,15 @@ class _CollectorScreenState extends State<CollectorScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Image.memory(qrImage, width: 200, height: 200),
+                        Image.memory(
+                          qrImage,
+                          width: (MediaQuery.sizeOf(context).width - 80)
+                              .clamp(120.0, 200.0)
+                              .toDouble(),
+                          height: (MediaQuery.sizeOf(context).width - 80)
+                              .clamp(120.0, 200.0)
+                              .toDouble(),
+                        ),
                         const SizedBox(height: 16),
 
                         TextField(
@@ -1668,134 +1680,154 @@ class _CollectorScreenState extends State<CollectorScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.attach_money, color: Colors.green),
-                        SizedBox(width: 8),
-                        Text(
-                          "Receber pagamento",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Valor máximo",
-                            style: TextStyle(fontSize: 13),
-                          ),
-                          Text(
-                            currencyFormat.format(maxValue),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: "R\$ 0,00",
-                        errorText: errorText,
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 12,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (text) {
-                        // 🔥 aplica máscara
-                        String digits = text.replaceAll(RegExp(r'[^0-9]'), '');
-
-                        double number =
-                            double.parse(digits.isEmpty ? '0' : digits) / 100;
-
-                        String newText = currencyFormat.format(number);
-
-                        controller.value = TextEditingValue(
-                          text: newText,
-                          selection: TextSelection.collapsed(
-                            offset: newText.length,
-                          ),
-                        );
-
-                        setState(() {
-                          final v = number;
-
-                          if (v <= 0) {
-                            errorText = "Informe um valor válido";
-                          } else if (v > maxValue) {
-                            errorText = "Maior que o permitido";
-                          } else {
-                            errorText = null;
-                          }
-                        });
-                      },
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  20 + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        Row(
+                          children: const [
+                            Icon(Icons.attach_money, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              "Receber pagamento",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            child: const Text("Cancelar"),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Valor máximo",
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              Text(
+                                currencyFormat.format(maxValue),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isValid
-                                ? () => Navigator.pop(context, value)
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+
+                        const SizedBox(height: 16),
+
+                        TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: "R\$ 0,00",
+                            errorText: errorText,
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (text) {
+                            // 🔥 aplica máscara
+                            String digits = text.replaceAll(
+                              RegExp(r'[^0-9]'),
+                              '',
+                            );
+
+                            double number =
+                                double.parse(digits.isEmpty ? '0' : digits) /
+                                100;
+
+                            String newText = currencyFormat.format(number);
+
+                            controller.value = TextEditingValue(
+                              text: newText,
+                              selection: TextSelection.collapsed(
+                                offset: newText.length,
+                              ),
+                            );
+
+                            setState(() {
+                              final v = number;
+
+                              if (v <= 0) {
+                                errorText = "Informe um valor válido";
+                              } else if (v > maxValue) {
+                                errorText = "Maior que o permitido";
+                              } else {
+                                errorText = null;
+                              }
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text("Cancelar"),
                               ),
                             ),
-                            child: const Text("Confirmar"),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isValid
+                                    ? () => Navigator.pop(context, value)
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text("Confirmar"),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );

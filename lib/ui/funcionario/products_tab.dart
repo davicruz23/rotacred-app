@@ -192,6 +192,8 @@ class _ProductsTabState extends State<ProductsTab> {
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
@@ -216,8 +218,11 @@ class _ProductsTabState extends State<ProductsTab> {
                   vertical: 12,
                   horizontal: 16,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
@@ -232,7 +237,7 @@ class _ProductsTabState extends State<ProductsTab> {
                       icon: const Icon(Icons.arrow_back_ios, size: 16),
                       label: const Text('Anterior'),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox.shrink(),
                     Text(
                       'Página ${currentPage + 1} de $totalPages',
                       style: const TextStyle(
@@ -240,7 +245,7 @@ class _ProductsTabState extends State<ProductsTab> {
                         fontSize: 15,
                       ),
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox.shrink(),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blueAccent,

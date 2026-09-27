@@ -112,11 +112,6 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalSelectedQuantity = widget.selectedProducts.values.fold<int>(
-      0,
-      (sum, quantity) => sum + quantity,
-    );
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue.shade700,
@@ -133,6 +128,7 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                   fontWeight: FontWeight.w500,
                 ),
                 overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -216,6 +212,8 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         fontWeight: FontWeight.w600,
                                         fontSize: 16,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
@@ -224,6 +222,8 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         color: Colors.grey,
                                         fontSize: 14,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
                                       "R\$ ${item.priceProduct.toStringAsFixed(2)} • Disponível: ${item.quantity}",

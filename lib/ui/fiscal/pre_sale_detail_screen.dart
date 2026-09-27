@@ -249,7 +249,9 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
-                            Row(
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 2,
                               children: [
                                 Text(
                                   "Quantidade: ${item.quantity}",
@@ -258,7 +260,6 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
                                     color: Colors.grey.shade600,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
                                 // Text(
                                 //   "R\$ ${item.unitPrice.toStringAsFixed(2)} un",
                                 //   style: TextStyle(
@@ -311,12 +312,14 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Valor Total:",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueAccent,
+                  const Expanded(
+                    child: Text(
+                      "Valor Total:",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
                     ),
                   ),
                   Text(
@@ -363,11 +366,15 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
               children: [
                 Icon(icon, color: Colors.blueAccent),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -435,31 +442,35 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
 
   Widget _actionButtons(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        ElevatedButton.icon(
-          icon: const Icon(Icons.check, color: Colors.white),
-          label: const Text("Aprovar"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.check, color: Colors.white),
+            label: const Text("Aprovar"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            onPressed: () => _showApproveModal(context),
           ),
-          onPressed: () => _showApproveModal(context),
         ),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.close, color: Colors.white),
-          label: const Text("Recusar"),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.close, color: Colors.white),
+            label: const Text("Recusar"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            onPressed: () => _showRejectModal(context),
           ),
-          onPressed: () => _showRejectModal(context),
         ),
       ],
     );
@@ -523,91 +534,83 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
             elevation: 10,
             backgroundColor: Colors.white,
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Título
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Colors.green, Colors.lightGreen],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.white,
-                            size: 28,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Título
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Colors.green, Colors.lightGreen],
                           ),
-                          SizedBox(width: 8),
-                          Text(
-                            "Aprovar venda",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Método de pagamento
-                    DropdownButtonFormField<String>(
-                      initialValue: paymentMethod,
-                      items: const [
-                        DropdownMenuItem(
-                          value: "CASH",
-                          child: Text("Dinheiro"),
-                        ),
-                        DropdownMenuItem(
-                          value: "PARCEL",
-                          child: Text("Parcelado"),
-                        ),
-                        DropdownMenuItem(
-                          value: "CREDIT",
-                          child: Text("Crédito"),
-                        ),
-                        DropdownMenuItem(value: "DEBIT", child: Text("Débito")),
-                        DropdownMenuItem(value: "PIX", child: Text("PIX")),
-                      ],
-                      onChanged: (val) {
-                        if (val == null) return;
-                        setState(() {
-                          paymentMethod = val;
-                          cashPaid = null;
-                          installments = 0;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: "Método de pagamento",
-                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              "Aprovar venda",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                    // Dinheiro à vista
-                    if (paymentMethod == "CASH") ...[
-                      TextFormField(
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
+                      // Método de pagamento
+                      DropdownButtonFormField<String>(
+                        initialValue: paymentMethod,
+                        items: const [
+                          DropdownMenuItem(
+                            value: "CASH",
+                            child: Text("Dinheiro"),
+                          ),
+                          DropdownMenuItem(
+                            value: "PARCEL",
+                            child: Text("Parcelado"),
+                          ),
+                          DropdownMenuItem(
+                            value: "CREDIT",
+                            child: Text("Crédito"),
+                          ),
+                          DropdownMenuItem(
+                            value: "DEBIT",
+                            child: Text("Débito"),
+                          ),
+                          DropdownMenuItem(value: "PIX", child: Text("PIX")),
+                        ],
+                        onChanged: (val) {
+                          if (val == null) return;
+                          setState(() {
+                            paymentMethod = val;
+                            cashPaid = null;
+                            installments = 0;
+                          });
+                        },
                         decoration: InputDecoration(
-                          labelText: "Valor pago em dinheiro",
-                          prefixText: "R\$ ",
+                          labelText: "Método de pagamento",
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -616,149 +619,179 @@ class _PreSaleDetailScreenState extends State<PreSaleDetailScreen> {
                             vertical: 8,
                           ),
                         ),
-                        onChanged: (val) {
-                          setState(() {
-                            cashPaid = double.tryParse(
-                              val.replaceAll(',', '.'),
-                            );
-                          });
-                        },
                       ),
                       const SizedBox(height: 16),
-                    ],
 
-                    // Parcelas
-                    if (paymentMethod == "PARCEL" ||
-                        paymentMethod == "CASH") ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Parcelas",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                      // Dinheiro à vista
+                      if (paymentMethod == "CASH") ...[
+                        TextFormField(
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: List.generate(10, (index) {
-                          final value = index + 1;
-
-                          return ChoiceChip(
-                            label: Text("${value}x"),
-                            selected: installments == value,
-                            onSelected: (_) {
-                              setState(() {
-                                installments = value;
-                              });
-                            },
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    // Ações
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.grey),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: InputDecoration(
+                            labelText: "Valor pago em dinheiro",
+                            prefixText: "R\$ ",
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text("Cancelar"),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
                             ),
-                            onPressed: _isApproving
-                                ? null
-                                : () async {
-                                    setState(() => _isApproving = true);
-
-                                    try {
-                                      final pos = await _getCurrentLocation();
-
-                                      String finalPaymentMethod = paymentMethod;
-                                      if (paymentMethod == "CASH" &&
-                                          (installments > 0 &&
-                                              (cashPaid ?? 0) > 0)) {
-                                        finalPaymentMethod = "PARCEL";
-                                      }
-
-                                      await InspectorService().approvePreSale(
-                                        preSaleId: widget.preSale.id!,
-                                        inspectorId: widget.inspectorId,
-                                        paymentMethod: finalPaymentMethod,
-                                        installments: installments,
-                                        cashPaid: cashPaid,
-                                        latitude: pos.latitude,
-                                        longitude: pos.longitude,
-                                      );
-
-                                      if (!context.mounted) return;
-
-                                      Navigator.of(context).pop();
-
-                                      if (!mounted) return;
-
-                                      ScaffoldMessenger.of(
-                                        this.context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text("Pré-venda aprovada ✅"),
-                                        ),
-                                      );
-
-                                      Navigator.of(this.context).pop(true);
-                                    } catch (e) {
-                                      if (!context.mounted) return;
-
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text("Erro ao aprovar: $e"),
-                                        ),
-                                      );
-                                    } finally {
-                                      if (context.mounted) {
-                                        setState(() => _isApproving = false);
-                                      }
-                                    }
-                                  },
-                            child: _isApproving
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text("Aprovar"),
                           ),
+                          onChanged: (val) {
+                            setState(() {
+                              cashPaid = double.tryParse(
+                                val.replaceAll(',', '.'),
+                              );
+                            });
+                          },
                         ),
+                        const SizedBox(height: 16),
                       ],
-                    ),
-                  ],
+
+                      // Parcelas
+                      if (paymentMethod == "PARCEL" ||
+                          paymentMethod == "CASH") ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            "Parcelas",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: List.generate(10, (index) {
+                            final value = index + 1;
+
+                            return ChoiceChip(
+                              label: Text("${value}x"),
+                              selected: installments == value,
+                              onSelected: (_) {
+                                setState(() {
+                                  installments = value;
+                                });
+                              },
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      // Ações
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Colors.grey),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              child: const Text("Cancelar"),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: _isApproving
+                                  ? null
+                                  : () async {
+                                      setState(() => _isApproving = true);
+
+                                      try {
+                                        final pos = await _getCurrentLocation();
+
+                                        String finalPaymentMethod =
+                                            paymentMethod;
+                                        if (paymentMethod == "CASH" &&
+                                            (installments > 0 &&
+                                                (cashPaid ?? 0) > 0)) {
+                                          finalPaymentMethod = "PARCEL";
+                                        }
+
+                                        await InspectorService().approvePreSale(
+                                          preSaleId: widget.preSale.id!,
+                                          inspectorId: widget.inspectorId,
+                                          paymentMethod: finalPaymentMethod,
+                                          installments: installments,
+                                          cashPaid: cashPaid,
+                                          latitude: pos.latitude,
+                                          longitude: pos.longitude,
+                                        );
+
+                                        if (!context.mounted) return;
+
+                                        Navigator.of(context).pop();
+
+                                        if (!mounted) return;
+
+                                        ScaffoldMessenger.of(
+                                          this.context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              "Pré-venda aprovada ✅",
+                                            ),
+                                          ),
+                                        );
+
+                                        Navigator.of(this.context).pop(true);
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              "Erro ao aprovar: $e",
+                                            ),
+                                          ),
+                                        );
+                                      } finally {
+                                        if (context.mounted) {
+                                          setState(() => _isApproving = false);
+                                        }
+                                      }
+                                    },
+                              child: _isApproving
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text("Aprovar"),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

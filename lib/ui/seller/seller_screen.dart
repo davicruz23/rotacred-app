@@ -259,7 +259,11 @@ class _SellerScreenState extends State<SellerScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        title: Text(widget.user.name),
+        title: Text(
+          widget.user.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],

@@ -94,16 +94,34 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                16,
+                24,
+                16 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
               child: Form(
                 key: _formKey,
                 onChanged: () => setState(() {}),
                 child: Column(
                   children: [
-                    Image.asset('assets/logoo2.png', height: 330),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final logoSize = constraints.maxWidth < 330
+                            ? constraints.maxWidth
+                            : 330.0;
+
+                        return Image.asset(
+                          'assets/logoo2.png',
+                          width: logoSize,
+                          height: logoSize,
+                          fit: BoxFit.contain,
+                        );
+                      },
+                    ),
 
                     //const SizedBox(height: 10),
-
                     const Text(
                       'Acesso ao Sistema',
                       style: TextStyle(
@@ -184,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     });
                                   },
                                 ),
-                                const Text('Lembrar CPF'),
+                                const Expanded(child: Text('Lembrar CPF')),
                               ],
                             ),
 
