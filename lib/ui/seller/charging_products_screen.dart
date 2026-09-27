@@ -5,14 +5,28 @@ import '../../model/pre_sale_item.dart';
 import '../seller/create_pre_sale_screen.dart';
 import '../../services/charging_service.dart';
 
-
 class ChargingProductsScreen extends StatefulWidget {
   final User user;
   final Charging charging;
+  final Map<int, int> selectedProducts;
+  final List<PreSaleItem> selectedItems;
+  final void Function({
+    required int productId,
+    required int quantity,
+    required String productName,
+    required double unitPrice,
+  })
+  onQuantityChanged;
+  final VoidCallback onClearSelection;
+
   const ChargingProductsScreen({
     super.key,
     required this.user,
     required this.charging,
+    required this.selectedProducts,
+    required this.selectedItems,
+    required this.onQuantityChanged,
+    required this.onClearSelection,
   });
 
   @override
@@ -21,60 +35,47 @@ class ChargingProductsScreen extends StatefulWidget {
 
 class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
   late Charging _charging;
-  final Map<int, int> _selectedProducts = {}; 
-  List<PreSaleItem> _selectedItems = [];
 
   @override
   void initState() {
     super.initState();
     _charging = widget.charging;
-    _updateSelectedItems();
   }
 
-  void _updateSelectedItems() {
-    _selectedItems = _charging.chargingItems
-        .where(
-          (item) =>
-              _selectedProducts[item.productId] != null &&
-              _selectedProducts[item.productId]! > 0,
-        )
-        .map(
-          (item) => PreSaleItem(
-            productId: item.productId,
-            productName: item.nameProduct,
-            quantity: _selectedProducts[item.productId]!,
-            unitPrice: item.priceProduct,
-          ),
-        )
-        .toList();
+  @override
+  void didUpdateWidget(covariant ChargingProductsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _charging = widget.charging;
   }
 
-  void _updateProductQuantity(int productId, int quantity) {
-    setState(() {
-      if (quantity <= 0) {
-        _selectedProducts.remove(productId);
-      } else {
-        _selectedProducts[productId] = quantity;
-      }
-      _updateSelectedItems();
-    });
-  }
+  void _updateProductQuantity({
+    required int productId,
+    required int quantity,
+    required String productName,
+    required double unitPrice,
+  }) {
+    widget.onQuantityChanged(
+      productId: productId,
+      quantity: quantity,
+      productName: productName,
+      unitPrice: unitPrice,
+    );
 
-  void _resetSelectedProducts() {
-    setState(() {
-      _selectedProducts.clear();
-      _selectedItems.clear();
-    });
+    setState(() {});
   }
 
   Future<void> _reloadCharging() async {
-    final updated = await ChargingService().getChargingById(
-      widget.charging.id,
-    );
-    setState(() => _charging = updated);
+    final updated = await ChargingService().getChargingById(widget.charging.id);
+
+    if (!mounted) return;
+
+    setState(() {
+      _charging = updated;
+    });
   }
+
   Future<void> _navigateToCreatePreSale() async {
-    if (_selectedItems.isEmpty) {
+    if (widget.selectedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione pelo menos um produto para continuar'),
@@ -89,17 +90,17 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
         builder: (_) => CreatePreSaleScreen(
           user: widget.user,
           charging: _charging,
-          selectedItems: List.from(_selectedItems),
+          selectedItems: List.from(widget.selectedItems),
         ),
       ),
     );
 
-    // ✅ SE A PRÉ-VENDA FOI CRIADA COM SUCESSO, RESETA OS PRODUTOS
     if (result == true) {
-      _resetSelectedProducts();
+      widget.onClearSelection();
       await _reloadCharging();
 
-      // Mostra mensagem de sucesso
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pré-venda criada com sucesso! Produtos resetados.'),
@@ -121,12 +122,13 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                ' ${_charging.description} - ${_charging.data}',
+                '${_charging.description} - ${_charging.data}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
                 overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -134,6 +136,24 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
       ),
       body: Column(
         children: [
+          // if (totalSelectedQuantity > 0)
+          //   Container(
+          //     width: double.infinity,
+          //     margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          //     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          //     decoration: BoxDecoration(
+          //       color: Colors.green.shade50,
+          //       borderRadius: BorderRadius.circular(12),
+          //       border: Border.all(color: Colors.green.shade200),
+          //     ),
+          //     child: Text(
+          //       'Itens selecionados: $totalSelectedQuantity',
+          //       style: TextStyle(
+          //         color: Colors.green.shade800,
+          //         fontWeight: FontWeight.w600,
+          //       ),
+          //     ),
+          //   ),
           Expanded(
             child: _charging.chargingItems.isEmpty
                 ? Center(
@@ -162,7 +182,8 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                     itemCount: _charging.chargingItems.length,
                     itemBuilder: (context, index) {
                       final item = _charging.chargingItems[index];
-                      final quantity = _selectedProducts[item.productId] ?? 0;
+                      final quantity =
+                          widget.selectedProducts[item.productId] ?? 0;
 
                       return Card(
                         elevation: 3,
@@ -173,6 +194,7 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               const Icon(
                                 Icons.shopping_cart_outlined,
@@ -180,7 +202,6 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                 size: 32,
                               ),
                               const SizedBox(width: 12),
-
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,6 +212,8 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         fontWeight: FontWeight.w600,
                                         fontSize: 16,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
@@ -199,6 +222,8 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         color: Colors.grey,
                                         fontSize: 14,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
                                       "R\$ ${item.priceProduct.toStringAsFixed(2)} • Disponível: ${item.quantity}",
@@ -224,8 +249,10 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         ),
                                         onPressed: quantity > 0
                                             ? () => _updateProductQuantity(
-                                                item.productId,
-                                                quantity - 1,
+                                                productId: item.productId,
+                                                quantity: quantity - 1,
+                                                productName: item.nameProduct,
+                                                unitPrice: item.priceProduct,
                                               )
                                             : null,
                                       ),
@@ -262,8 +289,10 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
                                         ),
                                         onPressed: quantity < item.quantity
                                             ? () => _updateProductQuantity(
-                                                item.productId,
-                                                quantity + 1,
+                                                productId: item.productId,
+                                                quantity: quantity + 1,
+                                                productName: item.nameProduct,
+                                                unitPrice: item.priceProduct,
                                               )
                                             : null,
                                       ),
@@ -289,17 +318,14 @@ class _ChargingProductsScreenState extends State<ChargingProductsScreen> {
           ),
         ],
       ),
-
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _selectedItems.isNotEmpty ? Colors.green : Colors.grey,
-        icon: const Icon(Icons.shopping_cart_checkout),
-        label: Text(
-          _selectedItems.isNotEmpty
-              ? "Continuar (${_selectedItems.length})"
-              : "Selecionar Produtos",
-        ),
-        onPressed: _navigateToCreatePreSale,
-      ),
+      floatingActionButton: widget.selectedItems.isNotEmpty
+          ? FloatingActionButton.extended(
+              backgroundColor: Colors.green,
+              icon: const Icon(Icons.shopping_cart_checkout),
+              label: Text("Continuar (${widget.selectedItems.length})"),
+              onPressed: _navigateToCreatePreSale,
+            )
+          : null,
     );
   }
 }

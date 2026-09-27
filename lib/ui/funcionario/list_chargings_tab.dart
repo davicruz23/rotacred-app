@@ -147,6 +147,8 @@ class _ListChargingsTabState extends State<ListChargingsTab> {
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
                       'Data: ${charging.chargingDate} • Itens: ${charging.chargingItems.length}',

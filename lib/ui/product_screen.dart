@@ -40,10 +40,18 @@ class _ProductScreenState extends State<ProductScreen> {
             itemBuilder: (context, index) {
               final product = products[index];
               return ListTile(
-                leading: CircleAvatar(child: Text(product.name[0])), // primeira letra do nome
-                title: Text(product.name), // nome do produto
+                leading: CircleAvatar(
+                  child: Text(product.name[0]),
+                ), // primeira letra do nome
+                title: Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ), // nome do produto
                 subtitle: Text(
                   'Marca: ${product.brand} - Qtd: ${product.amount} - R\$ ${product.value.toStringAsFixed(2)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ), // marca, quantidade e valor
               );
             },

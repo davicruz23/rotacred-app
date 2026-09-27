@@ -107,6 +107,8 @@ class InspectorHistoryPreSalesScreen extends StatelessWidget {
             title: Text(
               "Cliente: ${item.clientName}",
               style: const TextStyle(fontWeight: FontWeight.bold),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,6 +120,8 @@ class InspectorHistoryPreSalesScreen extends StatelessWidget {
             trailing: Text(
               item.status,
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         );

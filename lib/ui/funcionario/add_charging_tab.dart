@@ -86,7 +86,7 @@ class _AddChargingTabState extends State<AddChargingTab> {
     }
 
     return Container(
-      width: 120,
+      constraints: const BoxConstraints(minWidth: 112, maxWidth: 120),
       height: 40,
       decoration: BoxDecoration(
         color: Colors.grey.shade50,
@@ -105,6 +105,8 @@ class _AddChargingTabState extends State<AddChargingTab> {
               color: quantity > 0 ? Colors.red : Colors.grey,
             ),
             padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            visualDensity: VisualDensity.compact,
             onPressed: quantity > 0
                 ? () => _updateProductQuantity(
                     product.id,
@@ -140,6 +142,8 @@ class _AddChargingTabState extends State<AddChargingTab> {
               color: quantity < product.amount ? Colors.green : Colors.grey,
             ),
             padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            visualDensity: VisualDensity.compact,
             onPressed: quantity < product.amount
                 ? () => _updateProductQuantity(
                     product.id,
@@ -177,14 +181,17 @@ class _AddChargingTabState extends State<AddChargingTab> {
                 bottom: BorderSide(color: Colors.blue.shade200, width: 1),
               ),
             ),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.start,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 const Icon(
                   Icons.shopping_cart_checkout,
                   color: Colors.blue,
                   size: 24,
                 ),
-                const SizedBox(width: 8),
                 Text(
                   '${_selectedProducts.length} produto(s) selecionado(s)',
                   style: const TextStyle(
@@ -193,7 +200,6 @@ class _AddChargingTabState extends State<AddChargingTab> {
                     fontSize: 14,
                   ),
                 ),
-                const Spacer(),
                 Text(
                   'Total: $_totalSelectedProducts un',
                   style: const TextStyle(
@@ -266,7 +272,12 @@ class _AddChargingTabState extends State<AddChargingTab> {
 
               final products = snapshot.data!;
               return ListView.separated(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  _selectedProducts.isNotEmpty ? 88 : 16,
+                ),
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemCount: products.length,
                 itemBuilder: (context, index) {

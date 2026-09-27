@@ -83,14 +83,20 @@ class _FuncionarioScreenState extends State<FuncionarioScreen> {
                   fontSize: 20,
                 ),
               ),
-              const Spacer(),
               Row(
                 children: [
                   const Icon(Icons.person_outline, color: Colors.white70),
                   const SizedBox(width: 8),
-                  Text(
-                    widget.user.name,
-                    style: const TextStyle(color: Colors.white70, fontSize: 15),
+                  Flexible(
+                    child: Text(
+                      widget.user.name,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(

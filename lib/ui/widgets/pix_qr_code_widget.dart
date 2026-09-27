@@ -8,15 +8,15 @@ class PixQrCodeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final qrSize = (MediaQuery.sizeOf(context).width - 64)
+        .clamp(120.0, 200.0)
+        .toDouble();
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Use QrImageView se QrImage der erro
-        QrImageView(
-          data: brCode,
-          version: QrVersions.auto,
-          size: 200,
-        ),
+        QrImageView(data: brCode, version: QrVersions.auto, size: qrSize),
         const SizedBox(height: 16),
         const Text(
           "Escaneie para pagar via PIX",

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:rotacred_app/utils/sync_notifier.dart';
 import '../../model/dto/sale_collector_dto.dart';
 import '../../services/collector_service.dart';
 import '../../model/user.dart';
 import '../login_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import '../../services/location_service.dart';
 
 class CollectorScreen extends StatefulWidget {
   final User user;
@@ -21,11 +23,98 @@ class _CollectorScreenState extends State<CollectorScreen> {
   Map<String, List<SaleCollectorDTO>> _salesByCity = {};
   bool _rotating = false;
   bool _refreshing = false;
+  final Map<int, TextEditingController> controllers = {};
+  late VoidCallback _syncListener;
+
+  late final LocationService _locationService;
+
+  bool _checkingLocation = true;
+  bool _locationEnabled = false;
+  String? _locationError;
 
   @override
   void initState() {
     super.initState();
+
+    _locationService = LocationService();
+
+    _initializeLocation();
     _fetchCollectorSales();
+
+    _syncListener = () {
+      _fetchCollectorSales();
+    };
+
+    syncNotifier.addListener(_syncListener);
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        if (!mounted) return;
+
+        setState(() {
+          _checkingLocation = false;
+          _locationEnabled = false;
+          _locationError =
+              'Ative a localização do aparelho para utilizar o aplicativo.';
+        });
+
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+
+        setState(() {
+          _checkingLocation = false;
+          _locationEnabled = false;
+          _locationError = 'A permissão de localização é obrigatória.';
+        });
+
+        return;
+      }
+
+      await _locationService.startTracking(
+        userId: widget.user.serverId,
+        distanceFilter: 1,
+        onError: (error) {
+          debugPrint('Erro ao enviar localização: $error');
+        },
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _checkingLocation = false;
+        _locationEnabled = true;
+        _locationError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _checkingLocation = false;
+        _locationEnabled = false;
+        _locationError = error.toString();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    syncNotifier.removeListener(_syncListener);
+    _locationService.dispose();
+    super.dispose();
   }
 
   @override
@@ -84,6 +173,48 @@ class _CollectorScreenState extends State<CollectorScreen> {
           MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
+    }
+
+    if (_checkingLocation) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_locationEnabled) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.location_off, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  _locationError ?? 'A localização é obrigatória.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    await Geolocator.openLocationSettings();
+                  },
+                  child: const Text('Ativar localização'),
+                ),
+                TextButton(
+                  onPressed: _initializeLocation,
+                  child: const Text('Tentar novamente'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await Geolocator.openAppSettings();
+                  },
+                  child: const Text('Abrir permissões'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -204,6 +335,7 @@ class _CollectorScreenState extends State<CollectorScreen> {
                 ],
               ),
             )
+          //remover o reload aqui!
           : RefreshIndicator(
               onRefresh: _fetchCollectorSales,
               child: ListView(
@@ -241,7 +373,7 @@ class _CollectorScreenState extends State<CollectorScreen> {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 6,
-      shadowColor: Colors.blue.withOpacity(0.2),
+      shadowColor: Colors.blue.withValues(alpha: 0.2),
       margin: const EdgeInsets.only(bottom: 20, left: 4, right: 4),
       child: Container(
         decoration: BoxDecoration(
@@ -286,9 +418,13 @@ class _CollectorScreenState extends State<CollectorScreen> {
                 color: Colors.grey,
               ),
               const SizedBox(width: 4),
-              Text(
-                "Data da Venda: ${DateFormat('dd/MM/yyyy').format(sale.saleDate.toLocal())}",
-                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              Expanded(
+                child: Text(
+                  "Data da Venda: ${DateFormat('dd/MM/yyyy').format(sale.saleDate.toLocal())}",
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -300,7 +436,7 @@ class _CollectorScreenState extends State<CollectorScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.blue.shade50.withOpacity(0.5),
+                color: Colors.blue.shade50.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.all(10),
@@ -371,8 +507,553 @@ class _CollectorScreenState extends State<CollectorScreen> {
           ),
         const SizedBox(height: 8),
         _buildLocationSection(sale),
+
+        const SizedBox(height: 12),
+
+        _buildReportProblemButton(sale),
       ],
     );
+  }
+
+  Widget _buildReportProblemButton(SaleCollectorDTO sale) {
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: LinearGradient(
+            colors: [Colors.red.shade400, Colors.red.shade600],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromARGB(
+                255,
+                87,
+                85,
+                84,
+              ).withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.warning_amber_rounded, size: 20),
+          label: const Text(
+            "Reportar Problema",
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: () => _showProblemDialog(sale),
+        ),
+      ),
+    );
+  }
+
+  void _showProblemDialog(SaleCollectorDTO sale) {
+    final descController = TextEditingController();
+    int? selectedStatus;
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔥 Título + ícone
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Reportar Problema",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🔘 opções (cards clicáveis)
+                  _buildOptionCard(
+                    title: "Acionar garantia",
+                    subtitle: "Produto com defeito",
+                    icon: Icons.verified_user_outlined,
+                    selected: selectedStatus == 2,
+                    onTap: () => setState(() => selectedStatus = 2),
+                  ),
+
+                  _buildOptionCard(
+                    title: "Devolver produto",
+                    subtitle: "Devolução",
+                    icon: Icons.undo_outlined,
+                    selected: selectedStatus == 4,
+                    onTap: () => setState(() => selectedStatus = 4),
+                  ),
+
+                  _buildOptionCard(
+                    title: "Produto recuperado",
+                    subtitle: "Recuperado pelo Cobrador",
+                    icon: Icons.check_circle_outline,
+                    selected: selectedStatus == 5,
+                    onTap: () => setState(() => selectedStatus = 5),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // // ✍️ descrição
+                  // Container(
+                  //   decoration: BoxDecoration(
+                  //     color: const Color(0xFFF7F8FA),
+                  //     borderRadius: BorderRadius.circular(12),
+                  //   ),
+                  //   child: TextField(
+                  //     controller: descController,
+                  //     maxLines: 3,
+                  //     decoration: const InputDecoration(
+                  //       hintText: "Descreva o problema (opcional)",
+                  //       border: InputBorder.none,
+                  //       contentPadding: EdgeInsets.all(12),
+                  //     ),
+                  //   ),
+                  // ),
+                  const SizedBox(height: 20),
+
+                  // 🚀 botão
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (selectedStatus == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Selecione uma opção"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(context);
+
+                        _showReturnItemsDialog(
+                          sale,
+                          selectedStatus!,
+                          descController.text,
+                        );
+                      },
+                      child: const Text("Continuar"),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.blue.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? Colors.blueAccent : Colors.grey.shade200,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? Colors.blueAccent : Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle, color: Colors.blueAccent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget _buildProblemOption(
+  //   String title,
+  //   int status,
+  //   SaleCollectorDTO sale,
+  //   TextEditingController descController,
+  // ) {
+  //   return Container(
+  //     margin: const EdgeInsets.only(bottom: 8),
+  //     decoration: BoxDecoration(
+  //       borderRadius: BorderRadius.circular(10),
+  //       border: Border.all(color: Colors.grey.shade300),
+  //     ),
+  //     child: ListTile(
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+  //       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  //       onTap: () {
+  //         Navigator.pop(context);
+  //         _showReturnItemsDialog(sale, status, descController.text);
+  //       },
+  //     ),
+  //   );
+  // }
+
+  void _showReturnItemsDialog(
+    SaleCollectorDTO sale,
+    int status,
+    String description,
+  ) {
+    final List<Map<String, dynamic>> selectedItems = [
+      {"productId": null, "quantity": 1},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔷 Título
+                  const Text(
+                    "Selecionar produtos",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🔹 Lista de itens
+                  ...selectedItems.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+
+                    final productId = item["productId"] as int?;
+                    final quantity = item["quantity"] as int;
+
+                    final product = sale.products.firstWhere(
+                      (p) => p.id == productId,
+                      orElse: () => sale.products.first,
+                    );
+
+                    final maxQty = productId == null ? 1 : product.quantity;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F8FA), // 🔥 fundo suave
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          // 🔽 Dropdown
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: DropdownButton<int>(
+                              value: productId,
+                              hint: const Text("Selecione o produto"),
+                              isExpanded: true,
+                              underline: const SizedBox(),
+                              items: sale.products.map((p) {
+                                return DropdownMenuItem(
+                                  value: p.id,
+                                  child: Text(
+                                    p.nameProduct,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedItems[index]["productId"] = value;
+                                  selectedItems[index]["quantity"] = 1;
+                                });
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // 🔢 Quantidade + remover
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // 🔢 Controle quantidade
+                              Row(
+                                children: [
+                                  _buildQtyButton(
+                                    icon: Icons.remove,
+                                    enabled: quantity > 1,
+                                    onTap: () {
+                                      setState(() {
+                                        selectedItems[index]["quantity"] =
+                                            quantity - 1;
+                                      });
+                                    },
+                                  ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: Text(
+                                      quantity.toString(),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+
+                                  _buildQtyButton(
+                                    icon: Icons.add,
+                                    enabled:
+                                        productId != null && quantity < maxQty,
+                                    onTap: () {
+                                      setState(() {
+                                        selectedItems[index]["quantity"] =
+                                            quantity + 1;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+
+                              // ❌ remover item
+                              if (selectedItems.length > 1)
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedItems.removeAt(index);
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6),
+                                    child: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 10),
+
+                  // ➕ adicionar item
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.blueAccent,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          selectedItems.add({"productId": null, "quantity": 1});
+                        });
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text("Adicionar item"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🚀 botão enviar
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      onPressed: () {
+                        final validItems = selectedItems
+                            .where((e) => e["productId"] != null)
+                            .toList();
+
+                        if (validItems.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Selecione pelo menos um produto"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final hasInvalidQty = validItems.any(
+                          (e) => (e["quantity"] as int) <= 0,
+                        );
+
+                        if (hasInvalidQty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Quantidade inválida"),
+                            ),
+                          );
+                          return;
+                        }
+
+                        final items = validItems
+                            .map(
+                              (e) => {
+                                "productId": e["productId"],
+                                "quantityReturned": e["quantity"],
+                              },
+                            )
+                            .toList();
+
+                        Navigator.pop(context);
+
+                        _sendProblem(sale, status, description, items);
+                      },
+                      child: const Text(
+                        "Enviar",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQtyButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: enabled ? Colors.blue.shade50 : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled ? Colors.blueAccent : Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendProblem(
+    SaleCollectorDTO sale,
+    int status,
+    String description,
+    List<Map<String, dynamic>> items,
+  ) async {
+    try {
+      await CollectorService().reportProblem(
+        saleId: sale.id,
+        items: items,
+        status: status,
+        description: description.isEmpty ? null : description,
+      );
+
+      await _fetchCollectorSales();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Enviado com sucesso ✅")));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Erro: $e")));
+    }
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
@@ -492,7 +1173,9 @@ class _CollectorScreenState extends State<CollectorScreen> {
                     ),
                   ),
                   Text(
-                    "Valor Recebido: R\$ ${inst.amount.toStringAsFixed(2)}",
+                    inst.paid
+                        ? "Pagamento recebido: R\$ ${inst.amount.toStringAsFixed(2)}"
+                        : "Valor da parcela: R\$ ${inst.amount.toStringAsFixed(2)}",
                     style: TextStyle(
                       color: inst.paid ? Colors.green : Colors.grey.shade600,
                     ),
@@ -657,7 +1340,7 @@ class _CollectorScreenState extends State<CollectorScreen> {
     setState(() => _isLoading = true);
     try {
       final collector = await CollectorService().getCollectorByUserId(
-        widget.user.id,
+        widget.user.serverId,
       );
       final salesByCity = await CollectorService().getSalesForCollector(
         collector.idCollector,
@@ -668,6 +1351,7 @@ class _CollectorScreenState extends State<CollectorScreen> {
         _salesByCity = salesByCity;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao buscar vendas: $e"),
@@ -708,8 +1392,8 @@ class _CollectorScreenState extends State<CollectorScreen> {
   Future<void> _markAsPaid(int installmentId, double amount) async {
     try {
       final pos = await _getCurrentLocation();
+      if (!mounted) return;
 
-      // Diálogo estilizado para seleção de pagamento
       final paymentMethod = await showDialog<String>(
         context: context,
         builder: (_) => Dialog(
@@ -764,125 +1448,164 @@ class _CollectorScreenState extends State<CollectorScreen> {
         ),
       );
 
-      if (paymentMethod == null) return;
+      if (paymentMethod == null) {
+        return;
+      }
 
       if (paymentMethod == "PIX") {
         final qrImage = await CollectorService().getPixQrCode(installmentId);
 
+        final TextEditingController controller = TextEditingController();
+        final currencyFormat = NumberFormat.currency(
+          locale: 'pt_BR',
+          symbol: 'R\$',
+        );
+
+        double? pixValue;
+        String? errorText;
+        if (!mounted) return;
+
         final confirmed = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.green.shade50, Colors.white],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner,
-                    size: 48,
-                    color: Colors.green,
+          builder: (context) {
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return Dialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Pagamento via PIX",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.green.shade300),
-                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: [Colors.green.shade50, Colors.white],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Image.memory(qrImage, width: 200, height: 200),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "Escaneie o QR Code para pagar\nApós confirmação, toque em 'Confirmar'",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: BorderSide(color: Colors.grey.shade400),
-                          ),
-                          child: const Text("Cancelar"),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.qr_code_scanner,
+                          size: 48,
+                          color: Colors.green,
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.check_circle),
-                          label: const Text("Confirmar"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Pagamento via PIX",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
                           ),
-                          onPressed: () => Navigator.pop(context, true),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Image.memory(
+                          qrImage,
+                          width: (MediaQuery.sizeOf(context).width - 80)
+                              .clamp(120.0, 200.0)
+                              .toDouble(),
+                          height: (MediaQuery.sizeOf(context).width - 80)
+                              .clamp(120.0, 200.0)
+                              .toDouble(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: "R\$ 0,00",
+                            errorText: errorText,
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (text) {
+                            String digits = text.replaceAll(
+                              RegExp(r'[^0-9]'),
+                              '',
+                            );
+
+                            double number =
+                                double.parse(digits.isEmpty ? '0' : digits) /
+                                100;
+
+                            String newText = currencyFormat.format(number);
+
+                            controller.value = TextEditingValue(
+                              text: newText,
+                              selection: TextSelection.collapsed(
+                                offset: newText.length,
+                              ),
+                            );
+
+                            setState(() {
+                              pixValue = number;
+
+                              if (number <= 0) {
+                                errorText = "Informe um valor válido";
+                              } else if (number > amount) {
+                                errorText = "Maior que o permitido";
+                              } else {
+                                errorText = null;
+                              }
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: const Text("Cancelar"),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed:
+                                    (pixValue != null && errorText == null)
+                                    ? () => Navigator.pop(context, true)
+                                    : null,
+                                child: const Text("Confirmar"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                );
+              },
+            );
+          },
         );
+
+        if (confirmed != true || pixValue == null) return;
 
         await CollectorService().collectInstallment(
           collectorId: _collectorId!,
           installmentId: installmentId,
-          note: "Pago via PIX",
+          amount: pixValue,
+          paymentMethod: paymentMethod,
           latitude: pos.latitude,
           longitude: pos.longitude,
+          note: "PIX confirmado manualmente",
         );
-
-        if (confirmed == true) {
-          await CollectorService().collectInstallment(
-            collectorId: _collectorId!,
-            installmentId: installmentId,
-            amount: amount,
-            paymentMethod: paymentMethod,
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-            note: "PIX confirmado manualmente",
-          );
-        }
       } else if (paymentMethod == "CASH") {
-        final cashAmount = await _askCashAmount();
-        if (cashAmount == null) return;
+        final cashAmount = await _askCashAmount(amount);
 
-        await CollectorService().paySale(
-          installmentId: installmentId,
-          amount: cashAmount,
-        );
+        if (cashAmount == null) return;
 
         await CollectorService().collectInstallment(
           collectorId: _collectorId!,
@@ -894,30 +1617,31 @@ class _CollectorScreenState extends State<CollectorScreen> {
           note: "Pago em dinheiro",
         );
       } else {
+        final otherAmount = await _askCashAmount(amount);
+
+        if (otherAmount == null) return;
+
         await CollectorService().collectInstallment(
           collectorId: _collectorId!,
           installmentId: installmentId,
-          amount: amount,
+          amount: otherAmount,
           paymentMethod: paymentMethod,
           latitude: pos.latitude,
           longitude: pos.longitude,
           note: "Pagamento realizado com sucesso",
         );
       }
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Pagamento registrado com sucesso! ✅"),
           backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
         ),
       );
 
       await _fetchCollectorSales();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao registrar pagamento: $e"),
@@ -927,44 +1651,189 @@ class _CollectorScreenState extends State<CollectorScreen> {
     }
   }
 
-  Future<double?> _askCashAmount() async {
+  Future<double?> _askCashAmount(double maxValue) async {
     final TextEditingController controller = TextEditingController();
+    final currencyFormat = NumberFormat.currency(
+      locale: 'pt_BR',
+      symbol: 'R\$',
+    );
+
+    String? errorText;
 
     return await showDialog<double>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Valor recebido"),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            prefixText: "R\$ ",
-            hintText: "Ex: 50.00",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancelar"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final double? value = double.tryParse(
-                controller.text.replaceAll(',', '.'),
-              );
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            double? value;
 
-              if (value == null || value <= 0) {
-                // Se quiser, dá pra mostrar um erro aqui
-                return;
-              }
+            try {
+              value = currencyFormat.parse(controller.text) as double;
+            } catch (_) {
+              value = null;
+            }
 
-              Navigator.pop(context, value);
-            },
-            child: const Text("Confirmar"),
-          ),
-        ],
-      ),
+            bool isValid = value != null && value > 0 && value <= maxValue;
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  20 + MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.attach_money, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              "Receber pagamento",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                "Valor máximo",
+                                style: TextStyle(fontSize: 13),
+                              ),
+                              Text(
+                                currencyFormat.format(maxValue),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: "R\$ 0,00",
+                            errorText: errorText,
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 12,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          onChanged: (text) {
+                            // 🔥 aplica máscara
+                            String digits = text.replaceAll(
+                              RegExp(r'[^0-9]'),
+                              '',
+                            );
+
+                            double number =
+                                double.parse(digits.isEmpty ? '0' : digits) /
+                                100;
+
+                            String newText = currencyFormat.format(number);
+
+                            controller.value = TextEditingValue(
+                              text: newText,
+                              selection: TextSelection.collapsed(
+                                offset: newText.length,
+                              ),
+                            );
+
+                            setState(() {
+                              final v = number;
+
+                              if (v <= 0) {
+                                errorText = "Informe um valor válido";
+                              } else if (v > maxValue) {
+                                errorText = "Maior que o permitido";
+                              } else {
+                                errorText = null;
+                              }
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text("Cancelar"),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: isValid
+                                    ? () => Navigator.pop(context, value)
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text("Confirmar"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -999,6 +1868,8 @@ class _CollectorScreenState extends State<CollectorScreen> {
         longitude: pos.longitude,
       );
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Tentativa registrada: $status ✅"),
@@ -1007,6 +1878,8 @@ class _CollectorScreenState extends State<CollectorScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao registrar tentativa: $e"),
@@ -1015,55 +1888,4 @@ class _CollectorScreenState extends State<CollectorScreen> {
       );
     }
   }
-
-  // Future<void> _logout() async {
-  //   final shouldLogout = await showDialog<bool>(
-  //     context: context,
-  //     barrierDismissible: false,
-  //     builder: (context) => AlertDialog(
-  //       backgroundColor: Colors.white,
-  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-  //       title: Row(
-  //         children: const [
-  //           Icon(Icons.logout_rounded, color: Colors.redAccent),
-  //           SizedBox(width: 8),
-  //           Text(
-  //             'Sair da conta',
-  //             style: TextStyle(
-  //               color: Colors.black87,
-  //               fontWeight: FontWeight.w600,
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //       content: const Text(
-  //         'Deseja realmente sair da conta?',
-  //         style: TextStyle(color: Colors.black54, fontSize: 15),
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context, false),
-  //           child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
-  //         ),
-  //         ElevatedButton(
-  //           style: ElevatedButton.styleFrom(
-  //             backgroundColor: Colors.redAccent,
-  //             shape: RoundedRectangleBorder(
-  //               borderRadius: BorderRadius.all(Radius.circular(10)),
-  //             ),
-  //           ),
-  //           onPressed: () => Navigator.pop(context, true),
-  //           child: const Text('Sair'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-
-  //   if (shouldLogout == true && mounted) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const LoginScreen()),
-  //     );
-  //   }
-  // }
 }

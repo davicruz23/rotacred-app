@@ -41,8 +41,16 @@ class _UsersScreenState extends State<UsersScreen> {
               final user = users[index];
               return ListTile(
                 leading: CircleAvatar(child: Text(user.name[0])),
-                title: Text(user.name),
-                subtitle: Text('CPF: ${user.cpf} - POSITION: ${user.position}'),
+                title: Text(
+                  user.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  'CPF: ${user.cpf} - POSITION: ${user.position}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               );
             },
           );
