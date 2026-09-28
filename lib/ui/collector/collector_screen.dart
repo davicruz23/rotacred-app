@@ -1665,6 +1665,9 @@ class _CollectorScreenState extends State<CollectorScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final viewInsets = MediaQuery.viewInsetsOf(context);
+            final screenSize = MediaQuery.sizeOf(context);
+            final availableHeight = screenSize.height - viewInsets.bottom;
             double? value;
 
             try {
@@ -1680,15 +1683,13 @@ class _CollectorScreenState extends State<CollectorScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  20,
-                  20,
-                  20 + MediaQuery.viewInsetsOf(context).bottom,
-                ),
+                padding: const EdgeInsets.all(20),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+                    // O teclado reduz a área realmente disponível para o
+                    // diálogo. Limitar pela altura total da tela fazia os
+                    // botões ficarem abaixo da área visível.
+                    maxHeight: availableHeight * 0.85,
                   ),
                   child: SingleChildScrollView(
                     child: Column(

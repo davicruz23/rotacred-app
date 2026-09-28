@@ -12,6 +12,9 @@ build/
 .env.*
 !.env.example
 
+# Local API environment configuration
+/lib/env/environment.dart
+
 # Flutter generated platform files
 ios/Flutter/Generated.xcconfig
 ios/Flutter/ephemeral/
